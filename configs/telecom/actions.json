@@ -1,0 +1,16 @@
+[
+  {
+    "name": "create_ticket",
+    "description": "Creates a support ticket for tracking and resolution",
+    "output_store": "tickets.json",
+    "fields": ["account_number", "issue_type", "description"],
+    "response_message": "A support ticket has been created. Our team will contact you within 24-48 hours."
+  },
+  {
+    "name": "create_notification",
+    "description": "Creates a notification to inform the customer or internal team",
+    "output_store": "notifications.json",
+    "fields": ["account_number", "message"],
+    "response_message": "A notification has been created and relevant teams have been informed."
+  }
+]

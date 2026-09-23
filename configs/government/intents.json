@@ -1,0 +1,42 @@
+[
+  {
+    "name": "pan_update",
+    "description": "Citizen wants to update details on their PAN card",
+    "keywords": ["pan update", "update pan", "pan card change", "change pan details", "pan correction", "pan name change"],
+    "required_fields": ["user_id", "pan_number", "update_type"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "I can help with a PAN update. Could you tell me what specifically needs to be changed — is it your name, date of birth, or something else?",
+    "escalate_keywords": ["urgent", "court order", "legal", "misuse", "fraud", "someone else using", "identity theft", "not mine"]
+  },
+  {
+    "name": "aadhaar_update",
+    "description": "Citizen wants to update details on their Aadhaar card",
+    "keywords": ["aadhaar update", "update aadhaar", "aadhar update", "update aadhar", "aadhaar change", "change aadhaar"],
+    "required_fields": ["user_id", "aadhaar_number", "field_to_update"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "Sure, I can assist with an Aadhaar update. What detail would you like to update — address, mobile number, name, or something else?",
+    "escalate_keywords": ["misuse", "fraud", "stolen", "identity theft", "someone used my aadhaar", "fake", "court", "legal"]
+  },
+  {
+    "name": "pan_status",
+    "description": "Citizen wants to check the status of their PAN card application",
+    "keywords": ["pan status", "pan application status", "track pan", "where is my pan", "pan card status"],
+    "required_fields": ["user_id", "pan_number"],
+    "action": "create_notification",
+    "priority": "low",
+    "context_question": "Happy to check that for you. When did you submit the PAN application, and have you received any acknowledgement number?",
+    "escalate_keywords": ["months ago", "very long", "urgent", "job", "visa", "travel", "legal deadline", "court"]
+  },
+  {
+    "name": "aadhaar_correction",
+    "description": "Citizen wants to correct an error on their Aadhaar card",
+    "keywords": ["aadhaar correction", "aadhar correction", "wrong aadhaar", "aadhaar mistake", "fix aadhaar", "correct aadhaar"],
+    "required_fields": ["user_id", "aadhaar_number", "field_to_correct", "correct_value"],
+    "action": "create_ticket",
+    "priority": "high",
+    "context_question": "I'm sorry about the error. Can you describe what is incorrect on your Aadhaar — is it your name, date of birth, address, or something else?",
+    "escalate_keywords": ["urgent", "bank rejected", "blocked", "cannot use", "hospital", "legal", "court", "months wrong", "identity"]
+  }
+]

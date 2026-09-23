@@ -1,0 +1,16 @@
+[
+  {
+    "name": "create_ticket",
+    "description": "Creates a government service request ticket for processing",
+    "output_store": "tickets.json",
+    "fields": ["user_id", "service_type", "description"],
+    "response_message": "Your service request has been submitted. You will receive an acknowledgement number shortly. Processing may take 7-15 working days."
+  },
+  {
+    "name": "create_notification",
+    "description": "Creates a status notification for the citizen",
+    "output_store": "notifications.json",
+    "fields": ["user_id", "message"],
+    "response_message": "A status update notification has been created. Check your registered email/mobile for updates."
+  }
+]

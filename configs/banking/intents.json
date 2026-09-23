@@ -1,0 +1,42 @@
+[
+  {
+    "name": "autopay_refund",
+    "description": "User wants a refund for an unauthorized or incorrect UPI autopay debit",
+    "keywords": ["autopay", "auto pay", "upi debit", "refund", "auto debit", "debited", "charged", "money deducted", "deducted", "payment deducted", "amount deducted", "upi charge", "mandate"],
+    "required_fields": ["user_id", "transaction_id", "amount"],
+    "action": "create_ticket",
+    "priority": "high",
+    "context_question": "I'm sorry to hear that. Could you briefly describe what happened — when did this debit occur, and was it something you had authorized before?",
+    "escalate_keywords": ["fraud", "scam", "hacked", "not me", "unauthorized", "multiple times", "twice", "again", "repeated", "third party", "stolen"]
+  },
+  {
+    "name": "autopay_cancel",
+    "description": "User wants to cancel an active autopay subscription",
+    "keywords": ["cancel autopay", "stop autopay", "cancel subscription", "stop auto payment", "disable autopay"],
+    "required_fields": ["user_id", "subscription_id"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "Sure, I can help with that. Can you tell me why you want to cancel — is this a service issue, unexpected charges, or you simply don't need it anymore?",
+    "escalate_keywords": ["fraud", "not authorized", "scam", "never subscribed", "did not sign up", "forced"]
+  },
+  {
+    "name": "charge_dispute",
+    "description": "User is disputing an unknown or incorrect charge on their account",
+    "keywords": ["wrong charge", "unknown charge", "dispute charge", "incorrect deduction", "fraudulent charge", "not authorized"],
+    "required_fields": ["user_id", "transaction_id", "charge_date"],
+    "action": "create_ticket",
+    "priority": "high",
+    "context_question": "I understand your concern. Can you walk me through what you noticed — what was the charge amount, and do you have any idea where it might have come from?",
+    "escalate_keywords": ["fraud", "hacked", "stolen", "phishing", "scam", "someone else", "not me", "identity", "multiple charges"]
+  },
+  {
+    "name": "card_block",
+    "description": "User wants to block their debit or credit card",
+    "keywords": ["block card", "lost card", "stolen card", "card stolen", "card lost", "freeze card", "block my card"],
+    "required_fields": ["user_id", "card_last4"],
+    "action": "create_notification",
+    "priority": "high",
+    "context_question": "I'll help you block it right away. Before I do — can you tell me what happened? Was the card lost, stolen, or are you seeing suspicious transactions?",
+    "escalate_keywords": ["stolen", "robbery", "threat", "suspicious transaction", "fraud", "someone used", "already used", "transaction I didn't make"]
+  }
+]

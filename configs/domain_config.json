@@ -1,0 +1,6 @@
+{
+  "default_domain": "banking",
+  "supported_domains": ["banking", "government", "healthcare", "telecom"],
+  "version": "2.0.0",
+  "description": "QnA Action MCP - Domain Configuration"
+}

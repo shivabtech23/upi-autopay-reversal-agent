@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QnA Action Assistant</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'pulse-slow': 'pulse 3s infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(4px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- React 18 & Babel Standalone -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    /* Custom Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col justify-center items-center p-2 sm:p-4">
+  <div id="root" class="w-full max-w-4xl h-[94vh] max-h-[920px] flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- SVG Icon Components ---
+    const BotIcon = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v1.244m4.5 0V3.104M12 3v1.244M10.5 7.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm6.5 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM4.5 10.5h15M6 19.5h12a2.25 2.25 0 002.25-2.25V12A2.25 2.25 0 0018 9.75H6A2.25 2.25 0 003.75 12v5.25A2.25 2.25 0 006 19.5z" />
+      </svg>
+    );
+
+    const UserIcon = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    );
+
+    const SendIcon = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+      </svg>
+    );
+
+    const RefreshIcon = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7m1.981-4.704a8.25 8.25 0 00-13.803-3.7l-3.18 3.182" />
+      </svg>
+    );
+
+    const CheckIcon = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+      </svg>
+    );
+
+    const CopyIcon = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+      </svg>
+    );
+
+    const AlertIcon = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+    );
+
+    const SparklesIcon = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+      </svg>
+    );
+
+    const InfoIcon = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+      </svg>
+    );
+
+    // Domain Icons Mapping
+    const DomainBadgeIcon = ({ domain }) => {
+      const icons = {
+        banking: "💳",
+        government: "🏛️",
+        healthcare: "🩺",
+        telecom: "📱",
+        it_helpdesk: "💻"
+      };
+      return <span className="mr-1.5 text-base">{icons[domain] || "⚡"}</span>;
+    };
+
+    const DecisionTraceView = ({ trace, copyToClipboard, copiedId, msgId }) => {
+      const isAuto = trace.outcome === 'AUTO_REVERSE';
+      const evidenceList = trace.evidence || [];
+
+      // 1. Classification
+      const classEvidence = evidenceList.find(e => e.includes('classification:')) || `Classified as ${trace.reason_code}`;
+
+      // 2. Ledger verification checks
+      const ledgerChecks = evidenceList.filter(e =>
+        !e.includes('classification:') &&
+        !e.includes('guardrails:') &&
+        !e.includes('value_limit:') &&
+        !e.includes('claim_frequency:') &&
+        !e.includes('account_status:') &&
+        !e.includes('kyc_status:') &&
+        !e.includes('dispute_window:') &&
+        !e.includes('already_reversed:')
+      );
+
+      // 3. Guardrail checks
+      const guardrailItems = evidenceList.filter(e =>
+        e.includes('guardrails:') ||
+        e.includes('value_limit:') ||
+        e.includes('claim_frequency:') ||
+        e.includes('account_status:') ||
+        e.includes('kyc_status:') ||
+        e.includes('dispute_window:') ||
+        e.includes('already_reversed:')
+      );
+
+      const refId = trace.reversal_txn_id || trace.case_id || trace.txn_id;
+
+      return (
+        <div className={`w-full rounded-2xl border ${isAuto ? 'bg-slate-900/95 border-emerald-500/40 shadow-emerald-950/20' : 'bg-slate-900/95 border-amber-500/40 shadow-amber-950/20'} shadow-2xl overflow-hidden backdrop-blur-md`}>
+          {/* Header Banner */}
+          <div className={`px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-2 border-b ${isAuto ? 'bg-gradient-to-r from-emerald-950/90 via-emerald-900/30 to-slate-900 border-emerald-500/30 text-emerald-200' : 'bg-gradient-to-r from-amber-950/90 via-amber-900/30 to-slate-900 border-amber-500/30 text-amber-200'}`}>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className={`px-2.5 py-1 rounded-md text-xs font-bold tracking-wider uppercase ${isAuto ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30' : 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/30'}`}>
+                {isAuto ? '✓ AUTO-REVERSE' : '⚠ ESCALATE'}
+              </span>
+              <span className="font-mono text-sm font-bold text-slate-100">{trace.txn_id}</span>
+              {trace.amount && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800/90 font-bold text-slate-200 border border-slate-700">
+                  {trace.amount}
+                </span>
+              )}
+            </div>
+            {refId && (
+              <button
+                onClick={() => copyToClipboard(refId, msgId)}
+                className="text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors flex items-center gap-1.5"
+              >
+                {copiedId === msgId ? (
+                  <>
+                    <CheckIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon className="w-3.5 h-3.5" />
+                    <span>Ref: {refId}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Decision Trace Steps */}
+          <div className="p-4 sm:p-5 space-y-3 text-xs">
+
+            {/* Row 1: Reason Code */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/90 space-y-1.5">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                <span>Classified Reason Code</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                <span className="font-mono font-bold text-indigo-300 bg-indigo-950/70 px-2.5 py-1 rounded border border-indigo-500/30 text-xs">
+                  {trace.reason_code}
+                </span>
+                <span className="text-slate-300 text-xs font-medium">
+                  {classEvidence.replace(/^·\s*/, '')}
+                </span>
+              </div>
+            </div>
+
+            {/* Row 2: Ledger Verification */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/90 space-y-1.5">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                <span>Ledger Verification</span>
+              </div>
+              <div className="space-y-1.5 pt-0.5">
+                {ledgerChecks.length > 0 ? (
+                  ledgerChecks.map((item, idx) => {
+                    const isPass = item.startsWith('✓');
+                    const isFail = item.startsWith('✗');
+                    return (
+                      <div key={idx} className="flex items-start gap-2.5 text-slate-200">
+                        <span className={`font-mono text-sm font-bold flex-shrink-0 ${isPass ? 'text-emerald-400' : isFail ? 'text-rose-400' : 'text-blue-400'}`}>
+                          {item.slice(0, 1)}
+                        </span>
+                        <span className="leading-relaxed">{item.slice(2)}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-slate-400 italic">No specific ledger breach recorded.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 3: Guardrails */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/90 space-y-1.5">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${guardrailItems.some(g => g.startsWith('✗')) ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
+                <span>Guardrails Evaluation</span>
+              </div>
+              <div className="space-y-1.5 pt-0.5">
+                {guardrailItems.length > 0 ? (
+                  guardrailItems.map((item, idx) => {
+                    const isFail = item.startsWith('✗');
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border ${
+                          isFail
+                            ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
+                            : 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
+                        }`}
+                      >
+                        <span className={`font-mono font-bold text-xs uppercase px-1.5 py-0.5 rounded ${isFail ? 'bg-rose-900/60 text-rose-300' : 'bg-emerald-900/60 text-emerald-300'}`}>
+                          {isFail ? 'FAIL' : 'PASS'}
+                        </span>
+                        <span className="leading-relaxed text-xs">{item.slice(2)}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-slate-400 italic">Guardrails skipped (escalated prior to guardrail evaluation).</div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 4: Final Action */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/90 space-y-1.5">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${isAuto ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span>Final Action</span>
+              </div>
+              <div className="pt-0.5 text-xs text-slate-200">
+                {isAuto ? (
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className="font-semibold text-emerald-300 text-sm">
+                      Credited {trace.amount} back to customer account
+                    </span>
+                    {trace.reversal_txn_id && (
+                      <span className="font-mono bg-emerald-950/70 border border-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded text-[11px]">
+                        Ref: {trace.reversal_txn_id}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Routing Queue</span>
+                      <span className="font-mono font-bold text-amber-300">{trace.queue || 'general-disputes'}</span>
+                    </div>
+                    <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Priority</span>
+                      <span className="font-bold text-slate-200">{trace.priority || 'NORMAL'}</span>
+                    </div>
+                    <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Case Reference</span>
+                      <span className="font-mono text-indigo-300">{trace.case_id || 'Registered'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 5: Customer Message */}
+            {trace.customer_message && (
+              <div className="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/30 space-y-1.5">
+                <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>What the Customer Hears</span>
+                </div>
+                <div className="text-xs text-indigo-100/90 leading-relaxed italic p-2 rounded-lg bg-indigo-950/40 border border-indigo-500/20">
+                  "{trace.customer_message}"
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    };
+
+    function App() {
+      const [domainsData, setDomainsData] = useState(null);
+      const [selectedDomain, setSelectedDomain] = useState('');
+      const [status, setStatus] = useState('connecting'); // connecting | connected | error
+      const [loading, setLoading] = useState(false);
+      const [inputText, setInputText] = useState('');
+      const [copiedId, setCopiedId] = useState(null);
+
+      const [messages, setMessages] = useState([]);
+      const [uiMode, setUiMode] = useState('awaiting_message'); // awaiting_message | awaiting_context | awaiting_field
+      
+      const convoRef = useRef({
+        domain: null,
+        message: '',
+        context: '',
+        fields: {},
+        missingFields: [],
+        fieldCursor: 0
+      });
+
+      const chatEndRef = useRef(null);
+
+      // Auto scroll chat to bottom
+      const scrollToBottom = () => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+
+      useEffect(() => {
+        scrollToBottom();
+      }, [messages, loading]);
+
+      // Initialize domain data
+      useEffect(() => {
+        loadDomains();
+      }, []);
+
+      const loadDomains = async () => {
+        setStatus('connecting');
+        try {
+          const res = await fetch('/domains');
+          if (!res.ok) throw new Error('Network error');
+          const data = await res.json();
+          setDomainsData(data);
+
+          const defaultDom = data.default_domain || Object.keys(data.supported_domains)[0];
+          setSelectedDomain(defaultDom);
+          convoRef.current.domain = defaultDom;
+          setStatus('connected');
+
+          // Initial greeting
+          const persona = data.supported_domains[defaultDom]?.persona || 'Assistant';
+          setMessages([
+            {
+              id: 'init-1',
+              sender: 'agent',
+              text: `Hello! I'm ${persona}. What can I help you with today?`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ]);
+        } catch (e) {
+          console.error(e);
+          setStatus('error');
+        }
+      };
+
+      const handleDomainChange = (newDomain) => {
+        setSelectedDomain(newDomain);
+        convoRef.current = {
+          domain: newDomain,
+          message: '',
+          context: '',
+          fields: {},
+          missingFields: [],
+          fieldCursor: 0
+        };
+        setUiMode('awaiting_message');
+
+        const persona = domainsData?.supported_domains[newDomain]?.persona || 'Assistant';
+        setMessages([
+          {
+            id: 'domain-change-' + Date.now(),
+            sender: 'agent',
+            text: `Switched domain. Hello, I'm ${persona}. How can I assist you?`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      };
+
+      const resetConvoState = () => {
+        convoRef.current = {
+          domain: selectedDomain,
+          message: '',
+          context: '',
+          fields: {},
+          missingFields: [],
+          fieldCursor: 0
+        };
+        setUiMode('awaiting_message');
+      };
+
+      const handleResetChat = () => {
+        resetConvoState();
+        const persona = domainsData?.supported_domains[selectedDomain]?.persona || 'Assistant';
+        setMessages([
+          {
+            id: 'reset-' + Date.now(),
+            sender: 'agent',
+            text: `Conversation reset. Hi! I'm ${persona}. What would you like help with?`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      };
+
+      const runRequest = async (stage) => {
+        const payload = {
+          message: convoRef.current.message,
+          domain: convoRef.current.domain,
+          stage: stage,
+          context: convoRef.current.context,
+          fields: convoRef.current.fields,
+        };
+
+        const res = await fetch('/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        return await res.json();
+      };
+
+      const handleResponse = (resp) => {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (resp.next_step === 'reversal_resolved' || resp.decision_trace) {
+          setMessages(prev => [
+            ...prev,
+            { 
+              id: Date.now(), 
+              sender: 'agent', 
+              decisionTrace: resp.decision_trace,
+              actionResult: resp.action_result,
+              timestamp: time 
+            }
+          ]);
+          resetConvoState();
+        }
+        else if (resp.next_step === 'ask_context') {
+          setMessages(prev => [
+            ...prev,
+            { id: Date.now(), sender: 'agent', text: resp.question, timestamp: time }
+          ]);
+          setUiMode('awaiting_context');
+        } 
+        else if (resp.next_step === 'human_transfer') {
+          setMessages(prev => [
+            ...prev,
+            { 
+              id: Date.now(), 
+              sender: 'agent', 
+              text: '⚠️ Escalated to a human agent', 
+              type: 'escalated',
+              notes: resp.notes || [],
+              timestamp: time 
+            }
+          ]);
+          resetConvoState();
+        } 
+        else if (resp.next_step === 'collect_fields') {
+          convoRef.current.missingFields = resp.missing_fields || [];
+          convoRef.current.fieldCursor = 0;
+          setUiMode('awaiting_field');
+
+          setMessages(prev => [
+            ...prev,
+            { 
+              id: Date.now(), 
+              sender: 'agent', 
+              text: resp.question, 
+              missingFields: resp.missing_fields,
+              currentField: resp.missing_fields[0],
+              timestamp: time 
+            }
+          ]);
+        } 
+        else if (resp.next_step === 'action_executed') {
+          setMessages(prev => [
+            ...prev,
+            { 
+              id: Date.now(), 
+              sender: 'agent', 
+              text: `✓ ${resp.action_result?.message || 'Action executed successfully!'}`, 
+              type: 'success',
+              actionResult: resp.action_result,
+              notes: resp.notes || [],
+              timestamp: time 
+            }
+          ]);
+          resetConvoState();
+        } 
+        else if (resp.next_step === 'clarify_intent') {
+          setMessages(prev => [
+            ...prev,
+            { 
+              id: Date.now(), 
+              sender: 'agent', 
+              text: "I couldn't understand that — try describing it differently.", 
+              type: 'error',
+              notes: resp.notes || [],
+              timestamp: time 
+            }
+          ]);
+          resetConvoState();
+        } 
+        else if (resp.next_step === 'privacy_violation') {
+          setMessages(prev => [
+            ...prev,
+            { 
+              id: Date.now(), 
+              sender: 'agent', 
+              text: "That information can't be collected for privacy & security reasons.", 
+              type: 'error',
+              timestamp: time 
+            }
+          ]);
+          resetConvoState();
+        }
+      };
+
+      const processUserInput = async (textVal) => {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Add User Message
+        setMessages(prev => [
+          ...prev,
+          { id: 'user-' + Date.now(), sender: 'user', text: textVal, timestamp: time }
+        ]);
+
+        setLoading(true);
+
+        try {
+          if (uiMode === 'awaiting_message') {
+            convoRef.current.message = textVal;
+            const resp = await runRequest('new');
+            handleResponse(resp);
+          } else if (uiMode === 'awaiting_context') {
+            convoRef.current.context = textVal;
+            const resp = await runRequest('context_given');
+            handleResponse(resp);
+          } else if (uiMode === 'awaiting_field') {
+            const currentField = convoRef.current.missingFields[convoRef.current.fieldCursor];
+            convoRef.current.fields[currentField] = textVal;
+            convoRef.current.fieldCursor++;
+
+            if (convoRef.current.fieldCursor < convoRef.current.missingFields.length) {
+              const nextField = convoRef.current.missingFields[convoRef.current.fieldCursor];
+              setMessages(prev => [
+                ...prev,
+                { 
+                  id: Date.now(), 
+                  sender: 'agent', 
+                  text: `Please enter details for: ${nextField}`, 
+                  currentField: nextField,
+                  missingFields: convoRef.current.missingFields,
+                  timestamp: time 
+                }
+              ]);
+            } else {
+              const resp = await runRequest('fields_given');
+              handleResponse(resp);
+            }
+          }
+        } catch (err) {
+          console.error(err);
+          setMessages(prev => [
+            ...prev,
+            { id: Date.now(), sender: 'agent', text: "Unable to reach server. Please try again.", type: 'error', timestamp: time }
+          ]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const trimmed = inputText.trim();
+        if (!trimmed || loading) return;
+        setInputText('');
+        processUserInput(trimmed);
+      };
+
+      const copyToClipboard = (text, id) => {
+        navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      };
+
+      const currentDomainInfo = domainsData?.supported_domains[selectedDomain];
+      const intentDescriptions = currentDomainInfo?.intent_descriptions || {};
+
+      return (
+        <div className="flex-1 flex flex-col bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
+          
+          {/* Header */}
+          <header className="px-5 py-4 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                <SparklesIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  QnA Action Assistant
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    v2.0
+                  </span>
+                </h1>
+                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                  {status === 'connected' ? (
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-slow"></span>
+                      Ready ({currentDomainInfo?.persona || 'Online'})
+                    </span>
+                  ) : status === 'connecting' ? (
+                    <span className="flex items-center gap-1.5 text-amber-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                      Connecting to server…
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-rose-400">
+                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                      Server Offline
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Controls: Domain Selector & Reset */}
+            <div className="flex items-center gap-2.5">
+              {domainsData && (
+                <div className="relative">
+                  <select
+                    value={selectedDomain}
+                    onChange={(e) => handleDomainChange(e.target.value)}
+                    className="appearance-none bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl pl-3.5 pr-8 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-sm"
+                  >
+                    {Object.keys(domainsData.supported_domains).map(domainName => (
+                      <option key={domainName} value={domainName}>
+                        {domainName.toUpperCase()} — {domainsData.supported_domains[domainName].persona}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleResetChat}
+                title="Reset Conversation"
+                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl border border-slate-700/60 transition-colors"
+              >
+                <RefreshIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </header>
+
+          {/* Chat Messages Container */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {messages.map((msg) => {
+              const isAgent = msg.sender === 'agent';
+
+              if (msg.decisionTrace) {
+                return (
+                  <div key={msg.id} className="w-full animate-fade-in flex gap-3 justify-start">
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 flex-shrink-0 mt-1 shadow-sm">
+                      <BotIcon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 max-w-[96%]">
+                      <DecisionTraceView
+                        trace={msg.decisionTrace}
+                        copyToClipboard={copyToClipboard}
+                        copiedId={copiedId}
+                        msgId={msg.id}
+                      />
+                      <div className="text-[11px] text-slate-500 px-1 mt-1 text-left">
+                        {msg.timestamp}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div 
+                  key={msg.id}
+                  className={`flex gap-3 animate-fade-in ${isAgent ? 'justify-start' : 'justify-end'}`}
+                >
+                  {isAgent && (
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 flex-shrink-0 mt-1 shadow-sm">
+                      <BotIcon className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div className={`max-w-[82%] sm:max-w-[75%] space-y-2`}>
+                    
+                    {/* Main Bubble */}
+                    <div
+                      className={`p-3.5 sm:p-4 rounded-2xl text-sm leading-relaxed ${
+                        isAgent
+                          ? 'bg-slate-800/90 text-slate-200 border border-slate-700/70 rounded-tl-sm shadow-md'
+                          : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-tr-sm shadow-lg shadow-indigo-600/20 font-medium'
+                      }`}
+                    >
+                      <div className="whitespace-pre-wrap">{msg.text}</div>
+
+                      {/* Ticket Success Result Card */}
+                      {msg.actionResult && (
+                        <div className="mt-3 p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/30 text-emerald-100 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                              <CheckIcon className="w-4 h-4 text-emerald-400" />
+                              Record Created
+                            </span>
+                            <button
+                              onClick={() => copyToClipboard(msg.actionResult.id, msg.id)}
+                              className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-900/60 hover:bg-emerald-900 text-emerald-300 px-2 py-1 rounded-lg border border-emerald-500/20 transition-colors"
+                            >
+                              {copiedId === msg.id ? (
+                                <>
+                                  <CheckIcon className="w-3 h-3 text-emerald-400" /> Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <CopyIcon className="w-3 h-3" /> ID: {msg.actionResult.id.slice(0, 8)}...
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-emerald-500/20 text-emerald-200/90">
+                            <div><span className="text-emerald-400/70">ID:</span> {msg.actionResult.id}</div>
+                            <div><span className="text-emerald-400/70">Priority:</span> <span className="capitalize font-semibold text-emerald-300">{msg.actionResult.priority || 'medium'}</span></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Missing Fields Step Indicator */}
+                      {msg.missingFields && msg.missingFields.length > 0 && (
+                        <div className="mt-2.5 pt-2.5 border-t border-slate-700/60 flex flex-wrap gap-1.5 items-center text-xs">
+                          <span className="text-slate-400 mr-1 font-medium">Fields needed:</span>
+                          {msg.missingFields.map((field) => {
+                            const isCurrent = field === msg.currentField;
+                            return (
+                              <span
+                                key={field}
+                                className={`px-2 py-0.5 rounded-md font-mono text-[11px] ${
+                                  isCurrent
+                                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-semibold'
+                                    : 'bg-slate-700/50 text-slate-400 border border-slate-700'
+                                }`}
+                              >
+                                {isCurrent && "● "}{field}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Policy / Knowledge Notes Banners */}
+                    {msg.notes && msg.notes.length > 0 && (
+                      <div className="space-y-1.5 animate-slide-up">
+                        {msg.notes.map((note, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-start gap-2 p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/20 text-blue-200 text-xs leading-normal"
+                          >
+                            <InfoIcon className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                            <span>{note}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className={`text-[11px] text-slate-500 px-1 ${isAgent ? 'text-left' : 'text-right'}`}>
+                      {msg.timestamp}
+                    </div>
+                  </div>
+
+                  {!isAgent && (
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 mt-1 shadow-md">
+                      <UserIcon className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Loading Indicator */}
+            {loading && (
+              <div className="flex gap-3 justify-start animate-fade-in">
+                <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                  <BotIcon className="w-4 h-4" />
+                </div>
+                <div className="bg-slate-800/90 border border-slate-700/70 p-3.5 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"></span>
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:0.2s]"></span>
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:0.4s]"></span>
+                </div>
+              </div>
+            )}
+
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Quick Intent Hints (Shown in initial awaiting_message mode) */}
+          {uiMode === 'awaiting_message' && (
+            <div className="px-4 py-2.5 bg-slate-900/60 border-t border-slate-800/80">
+              <div className="text-[11px] font-semibold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                <SparklesIcon className="w-3.5 h-3.5 text-indigo-400" />
+                {selectedDomain === 'banking' ? 'Quick Scenarios & Requests:' : 'Suggested Requests:'}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedDomain === 'banking' && (
+                  <>
+                    <button
+                      onClick={() => processUserInput('TXN1001')}
+                      className="text-xs bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 px-3 py-1.5 rounded-full border border-emerald-500/40 transition-all hover:scale-[1.02] active:scale-[0.98] text-left font-medium shadow-sm"
+                    >
+                      <span className="mr-1">⚡</span> TXN1001 (Revoked Mandate → AUTO-REVERSE)
+                    </button>
+                    <button
+                      onClick={() => processUserInput('TXN1006')}
+                      className="text-xs bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 px-3 py-1.5 rounded-full border border-amber-500/40 transition-all hover:scale-[1.02] active:scale-[0.98] text-left font-medium shadow-sm"
+                    >
+                      <span className="mr-1">⚡</span> TXN1006 (Expired Mandate &gt; ₹25k → ESCALATE)
+                    </button>
+                  </>
+                )}
+                {Object.entries(intentDescriptions).map(([key, desc]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setInputText(desc);
+                    }}
+                    className="text-xs bg-slate-800 hover:bg-slate-700/90 text-slate-300 hover:text-indigo-300 px-3 py-1.5 rounded-full border border-slate-700/80 transition-all hover:scale-[1.02] active:scale-[0.98] text-left"
+                  >
+                    <DomainBadgeIcon domain={selectedDomain} />
+                    {desc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Input Prompt Section */}
+          <div className="p-4 bg-slate-900 border-t border-slate-800">
+            {/* Active Mode Banner */}
+            {uiMode === 'awaiting_field' && (
+              <div className="mb-2 text-xs font-semibold text-indigo-400 flex items-center justify-between px-1">
+                <span>Collecting Details: <span className="text-indigo-300 font-mono underline">{convoRef.current.missingFields[convoRef.current.fieldCursor]}</span></span>
+                <span className="text-[10px] text-slate-500 uppercase tracking-wide font-normal">Step {convoRef.current.fieldCursor + 1} of {convoRef.current.missingFields.length}</span>
+              </div>
+            )}
+
+            {uiMode === 'awaiting_context' && (
+              <div className="mb-2 text-xs font-semibold text-amber-400 flex items-center gap-1.5 px-1">
+                <InfoIcon className="w-3.5 h-3.5" />
+                Please describe what happened in detail...
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={
+                  uiMode === 'awaiting_field'
+                    ? `Enter ${convoRef.current.missingFields[convoRef.current.fieldCursor]}...`
+                    : uiMode === 'awaiting_context'
+                    ? "Provide background details on your situation..."
+                    : "Describe your issue or request..."
+                }
+                disabled={loading}
+                className="flex-1 bg-slate-950 text-slate-100 text-sm placeholder-slate-500 rounded-xl px-4 py-3 border border-slate-700/80 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner disabled:opacity-50"
+              />
+              
+              <button
+                type="submit"
+                disabled={!inputText.trim() || loading}
+                className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 flex-shrink-0 active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <SendIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Send</span>
+              </button>
+            </form>
+          </div>
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

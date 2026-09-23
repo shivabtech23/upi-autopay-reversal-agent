@@ -1,0 +1,16 @@
+[
+  {
+    "name": "create_ticket",
+    "description": "Creates a banking support ticket for investigation and resolution",
+    "output_store": "tickets.json",
+    "fields": ["user_id", "issue_type", "description"],
+    "response_message": "Your banking complaint has been registered. Our team will investigate and respond within 2-3 business days."
+  },
+  {
+    "name": "create_notification",
+    "description": "Creates an urgent notification for the banking operations team",
+    "output_store": "notifications.json",
+    "fields": ["user_id", "message"],
+    "response_message": "An urgent notification has been raised. The relevant team has been alerted immediately."
+  }
+]

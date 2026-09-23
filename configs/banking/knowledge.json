@@ -1,0 +1,8 @@
+{
+  "autopay_refund_policy": "UPI autopay refunds are processed within 5-7 business days as per RBI guidelines. The amount is credited back to the source account.",
+  "autopay_cancel_policy": "Autopay mandates can be cancelled anytime. Cancellation takes effect from the next billing cycle.",
+  "charge_dispute_policy": "Disputed charges are investigated within 7 working days. If found fraudulent, the amount is reversed within 2-3 business days.",
+  "card_block_policy": "Card blocking is immediate once the request is processed. A replacement card will be dispatched within 5-7 working days.",
+  "contact_info": "For urgent banking issues, call 1-800-BANK-HELP (24x7). Email: support@bank.example.com",
+  "privacy_note": "We never ask for OTP, PIN, CVV, or full card numbers over any channel."
+}

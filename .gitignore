@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+venv-mcp/
+.venv/
+env/
+.env/
+
+# Environment variables
+.env
+*.env
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Local data artifacts (reset before sharing)
+data/tickets.json
+data/notifications.json
+data/records.json
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+venv/
+venv-mcp/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.env

@@ -1,0 +1,8 @@
+{
+  "appointment_policy": "Appointments can be booked 1-30 days in advance. Same-day appointments are subject to doctor availability.",
+  "cancellation_policy": "Appointments must be cancelled at least 4 hours in advance to avoid a cancellation fee.",
+  "prescription_policy": "Prescription refills require a valid prescription ID and are processed within 24 hours.",
+  "emergency_note": "For medical emergencies, please call 911 or visit your nearest emergency room immediately.",
+  "privacy_note": "Your medical information is protected under HIPAA. We never share patient data without consent.",
+  "available_specializations": ["General Physician", "Cardiologist", "Dermatologist", "Orthopedic", "Pediatrician", "Neurologist"]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "cancel_subscription",
+    "description": "Customer wants to cancel a telecom subscription or add-on",
+    "keywords": ["cancel subscription", "cancel plan", "stop subscription", "unsubscribe", "deactivate plan", "cancel my plan", "want to cancel", "need to cancel", "cancelled", "already cancelled", "had cancelled", "i cancelled"],
+    "required_fields": ["account_number", "subscription_id"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "I can help you with that. Before proceeding, could you tell me why you want to cancel — is it a service quality issue, pricing concern, or something else?",
+    "escalate_keywords": ["cheated", "fraud", "forced", "never agreed", "scam", "illegal", "threatening", "harassment"]
+  },
+  {
+    "name": "network_issue",
+    "description": "Customer is experiencing poor network, no signal, or connectivity problems",
+    "keywords": ["network issue", "no signal", "no internet", "poor network", "slow internet", "network down", "not connecting", "outage", "disconnected", "signal", "connectivity", "network", "internet not working"],
+    "required_fields": ["account_number", "location"],
+    "action": "create_ticket",
+    "priority": "high",
+    "context_question": "I understand how frustrating that must be. Can you describe the issue — is it complete no signal, very slow speed, or intermittent drops? And since when are you facing this?",
+    "escalate_keywords": ["days", "week", "weeks", "month", "long time", "always", "never works", "business loss", "emergency", "critical"]
+  },
+  {
+    "name": "bill_dispute",
+    "description": "Customer is disputing a charge or amount on their telecom bill",
+    "keywords": ["bill dispute", "wrong bill", "incorrect bill", "overcharged", "wrong charge", "bill issue", "dispute my bill", "charged", "got charged", "being charged", "charged for", "unexpected charge", "deducted", "debit", "subscription charge", "charged again", "still charging", "charged even after"],
+    "required_fields": ["account_number", "bill_month", "disputed_amount"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "I'm sorry about that. Can you walk me through what looks wrong on the bill — is it an extra charge, incorrect plan amount, or a service you didn't use?",
+    "escalate_keywords": ["fraud", "scam", "never used", "large amount", "very high", "thousands", "multiple months", "always wrong", "third party charge"]
+  },
+  {
+    "name": "sim_replacement",
+    "description": "Customer needs a SIM card replacement due to damage or loss",
+    "keywords": ["sim replacement", "replace sim", "new sim", "sim damaged", "lost sim", "sim not working", "sim swap", "sim card", "sim lost", "sim broken"],
+    "required_fields": ["account_number", "reason"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "I can help arrange a SIM replacement. Could you tell me what happened — is the SIM physically damaged, lost, or are you facing a technical issue with it?",
+    "escalate_keywords": ["stolen", "theft", "someone has my sim", "sim swap fraud", "calls going to someone else", "hacked", "unauthorized"]
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "pan_update_policy": "PAN card updates are processed by NSDL/UTIITSL. Changes typically take 15-20 working days. A fee may apply.",
+  "aadhaar_update_policy": "Aadhaar updates are processed by UIDAI. Online updates for name, address, and DOB are allowed. Biometric updates require a visit to an Aadhaar Seva Kendra.",
+  "pan_status_policy": "PAN application status can also be tracked on the NSDL or UTIITSL website using your acknowledgement number.",
+  "aadhaar_correction_policy": "Aadhaar corrections can be done online via myaadhaar.uidai.gov.in or offline at an Aadhaar Seva Kendra. Max 2 online updates allowed per field.",
+  "contact_info": "For PAN: 1800-222-990 (NSDL) | For Aadhaar: 1947 (UIDAI helpline)",
+  "privacy_note": "We never ask for OTP, biometrics, or full Aadhaar digits over this channel. Government services are free — beware of fraud."
+}

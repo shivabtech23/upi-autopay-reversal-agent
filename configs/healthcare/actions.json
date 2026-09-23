@@ -1,0 +1,16 @@
+[
+  {
+    "name": "create_ticket",
+    "description": "Creates a healthcare service request ticket",
+    "output_store": "tickets.json",
+    "fields": ["patient_name", "issue_type", "description"],
+    "response_message": "Your request has been submitted. Our healthcare team will confirm your appointment within 2-4 hours."
+  },
+  {
+    "name": "create_notification",
+    "description": "Sends a notification to the patient or relevant department",
+    "output_store": "notifications.json",
+    "fields": ["patient_name", "message"],
+    "response_message": "A notification has been sent to the relevant department. You will hear back shortly."
+  }
+]

@@ -1,0 +1,112 @@
+[
+  {
+    "txn_id": "TXN1001",
+    "mandate_id": "MND001",
+    "customer_id": "CUST001",
+    "merchant_name": "Netflix India",
+    "amount_paise": 64900,
+    "debited_at": "2026-09-21T15:22:42",
+    "status": "REVERSED",
+    "rrn": "RRN500001",
+    "reversal_txn_id": "REV71FC792185"
+  },
+  {
+    "txn_id": "TXN1002",
+    "mandate_id": "MND002",
+    "customer_id": "CUST002",
+    "merchant_name": "FitPass Gym",
+    "amount_paise": 99900,
+    "debited_at": "2026-09-20T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500002",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1003",
+    "mandate_id": "MND003",
+    "customer_id": "CUST002",
+    "merchant_name": "CloudStore",
+    "amount_paise": 119900,
+    "debited_at": "2026-09-19T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500003",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1004",
+    "mandate_id": "MND003",
+    "customer_id": "CUST002",
+    "merchant_name": "CloudStore",
+    "amount_paise": 119900,
+    "debited_at": "2026-09-19T18:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500004",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1005",
+    "mandate_id": "MND004",
+    "customer_id": "CUST001",
+    "merchant_name": "EduPrime",
+    "amount_paise": 149900,
+    "debited_at": "2026-09-17T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500005",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1006",
+    "mandate_id": "MND005",
+    "customer_id": "CUST004",
+    "merchant_name": "InsureCo",
+    "amount_paise": 4800000,
+    "debited_at": "2026-09-18T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500006",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1007",
+    "mandate_id": "MND006",
+    "customer_id": "CUST003",
+    "merchant_name": "ShopMax Plus",
+    "amount_paise": 89900,
+    "debited_at": "2026-09-20T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500007",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1008",
+    "mandate_id": "MND007",
+    "customer_id": "CUST004",
+    "merchant_name": "StreamPlus",
+    "amount_paise": 29900,
+    "debited_at": "2026-09-16T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500008",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1009",
+    "mandate_id": "MND008",
+    "customer_id": "CUST001",
+    "merchant_name": "MealBox Daily",
+    "amount_paise": 79900,
+    "debited_at": "2026-09-15T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500009",
+    "reversal_txn_id": null
+  },
+  {
+    "txn_id": "TXN1010",
+    "mandate_id": "MND004",
+    "customer_id": "CUST001",
+    "merchant_name": "EduPrime",
+    "amount_paise": 149900,
+    "debited_at": "2026-08-19T15:22:42",
+    "status": "SUCCESS",
+    "rrn": "RRN500010",
+    "reversal_txn_id": null
+  }
+]

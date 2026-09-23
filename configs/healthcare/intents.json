@@ -1,0 +1,42 @@
+[
+  {
+    "name": "book_appointment",
+    "description": "Patient wants to book a doctor appointment",
+    "keywords": ["appointment", "book", "schedule", "see a doctor", "doctor visit", "consultation", "meet doctor"],
+    "required_fields": ["patient_name", "doctor_specialization", "preferred_date"],
+    "action": "create_ticket",
+    "priority": "medium",
+    "context_question": "I'm here to help. Could you briefly tell me what you're experiencing so I can suggest the right type of doctor and priority level?",
+    "escalate_keywords": ["emergency", "chest pain", "can't breathe", "unconscious", "severe", "bleeding", "stroke", "heart attack", "critical", "911", "ambulance"]
+  },
+  {
+    "name": "cancel_appointment",
+    "description": "Patient wants to cancel an existing appointment",
+    "keywords": ["cancel appointment", "cancel booking", "cancel my appointment", "reschedule"],
+    "required_fields": ["patient_name", "appointment_id"],
+    "action": "create_notification",
+    "priority": "medium",
+    "context_question": "I can help with that. Are you looking to cancel entirely, or would you prefer to reschedule to a different date?",
+    "escalate_keywords": ["emergency", "hospitalized", "admitted", "surgery", "accident", "critical condition"]
+  },
+  {
+    "name": "prescription_refill",
+    "description": "Patient wants to refill a prescription",
+    "keywords": ["prescription", "refill", "medicine", "medication", "repeat prescription"],
+    "required_fields": ["patient_name", "prescription_id", "pharmacy_name"],
+    "action": "create_ticket",
+    "priority": "high",
+    "context_question": "Understood. Could you tell me which medication you need refilled and how urgently you need it?",
+    "escalate_keywords": ["last dose", "running out today", "no medicine left", "urgent", "critical medication", "insulin", "blood pressure", "heart medication", "emergency"]
+  },
+  {
+    "name": "lab_report_query",
+    "description": "Patient asking about lab test results",
+    "keywords": ["lab report", "test results", "blood test", "lab results", "test report"],
+    "required_fields": ["patient_name", "test_date"],
+    "action": "create_notification",
+    "priority": "low",
+    "context_question": "I can look into that. Do you know which test results you're waiting for, and has your doctor already reviewed them with you?",
+    "escalate_keywords": ["abnormal", "critical value", "doctor said urgent", "very high", "very low", "concerning", "biopsy", "cancer", "tumor"]
+  }
+]

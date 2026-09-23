@@ -1,0 +1,7 @@
+{
+  "refund_policy": "Autopay and auto-debit refunds are processed within 5-7 business days. Refunds are credited back to the original payment method.",
+  "bill_dispute_policy": "Bill disputes must be raised within 30 days of the bill date. Our team will review and respond within 3 business days.",
+  "outage_policy": "Reported outages are escalated to the network team immediately. Resolution time is typically 4-24 hours depending on severity.",
+  "contact_info": "For urgent issues, call 1-800-TELECOM (Mon-Sat, 9AM-6PM). For non-urgent matters, email support@telecom.example.com.",
+  "privacy_note": "We never ask for OTP, passwords, or full card numbers. Beware of phishing attempts."
+}
