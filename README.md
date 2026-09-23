@@ -178,3 +178,156 @@ Most of the value here is not automation. It is drawing a defensible line betwee
 ---
 
 Built for the Neutrinos Venture Studio Hackathon by [Shiv Arora](https://github.com/shivabtech23).
+
+---
+---
+
+# Reference
+
+Everything below documents the wider `qna-action-mcp` engine the reversal layer is built on — a domain-driven workflow server covering banking, telecom, healthcare and government.
+
+## Project structure
+
+```
+qna-action-mcp/
+├── configs/
+│   ├── domain_config.json        # Global domain registry
+│   └── <domain>/
+│       ├── intents.json          # Intent definitions + required fields
+│       ├── actions.json          # Action metadata
+│       ├── knowledge.json        # Policies and notes
+│       └── persona.json          # Bot tone and rules
+├── data/                         # JSON stores: mandates, transactions, notices,
+│                                 # accounts, tickets, audit log, request log
+├── mcp-client/client.py          # CLI client (interactive + one-shot)
+└── mcp-server/
+    ├── core.py                   # Shared engine — config, intent detection, actions
+    ├── reversal_policy.py        # Pure decision engine (66 tests)
+    ├── reversal_ledger.py        # Ledger access, idempotency, append-only audit
+    ├── reversal.py               # Orchestrator — money movement, tickets, customer copy
+    ├── qna_action_mcp_server.py  # REST API (FastAPI), serves the web UI
+    ├── mcp_server.py             # MCP server (official SDK, stdio transport)
+    ├── seed_reversal_ledger.py   # Seeds the 9 benchmark scenarios
+    ├── demo_reversal.py          # End-to-end scenario runner
+    ├── test_reversal_policy.py   # 66 unit tests
+    ├── test_mcp_client.py        # Exercises mcp_server.py end to end
+    └── static/index.html         # Decision-trace web UI
+```
+
+Both interfaces share `core.py`, so behaviour never drifts between them.
+
+## MCP resources (read-only)
+
+| URI | Returns |
+|---|---|
+| `domains://list` | Domain registry |
+| `knowledge://{domain}` | Knowledge base, policy notes, SLAs |
+| `intents://{domain}` | Intent definitions: name, description, required fields, priority |
+| `persona://{domain}` | Tone, behavioural rules, escalation message |
+
+## MCP tools
+
+| Tool | Purpose |
+|---|---|
+| `assess_reversal` | Dry-run the full decision engine — returns verdict, reasoning and evidence, changes nothing |
+| `initiate_refund_or_reversal` | Resolve a reversal. Re-runs the engine internally and refuses if it does not independently reach the same verdict |
+| `get_transaction` · `list_customer_debits` · `get_reversal_audit` | Read the ledger |
+| `pause_or_cancel_mandate` | Stop a mandate. Refuses unless the detected intent is cancel/pause/mandate-type |
+| `search_knowledge` | Free-text search over a domain's knowledge base |
+| `create_case` | Open a ticket once required fields are complete |
+| `send_notification_or_escalation` | Raise a notification, or escalate to a human agent |
+
+Each restricted tool checks the detected intent against an allow-list and returns an error rather than acting — an MCP host cannot use `initiate_refund_or_reversal` to block a card, or `pause_or_cancel_mandate` to file a refund.
+
+### Connect it to an MCP host
+
+```bash
+cd mcp-server
+python3.12 -m venv venv-mcp                     # 3.10+ required by the mcp SDK
+venv-mcp/bin/pip install -r requirements-mcp.txt
+venv-mcp/bin/python test_mcp_client.py          # scripted test, no host needed
+venv-mcp/bin/mcp dev mcp_server.py              # or the browser-based MCP Inspector
+```
+
+## REST API
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Server health and loaded domains |
+| GET | `/domains` | Available domains and their intents |
+| GET | `/tools` | Available actions per domain |
+| POST | `/assess` | Dry-run the reversal engine — returns verdict and evidence, changes nothing |
+| POST | `/run` | Main workflow endpoint. Resolves a reversal when a known transaction id is present, otherwise runs the multi-turn field-collection flow |
+
+### `POST /assess`
+
+```bash
+curl -X POST http://localhost:8000/assess \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id": "TXN1001",
+    "complaint_text": "I cancelled the Netflix autopay mandate last week but they still took 649 rupees."
+  }'
+```
+
+Returns the outcome, reason code, ledger evidence and the customer message that *would* be sent — with no side effects.
+
+### `POST /run`
+
+```bash
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{"message": "TXN1006"}'
+```
+
+Returns a full `decision_trace`: outcome, reason code, evidence, routing queue, priority, case reference and customer message.
+
+Without a recognised transaction id it falls through to the multi-turn flow:
+
+```bash
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{"message": "I need to book an appointment with a cardiologist", "domain": "healthcare"}'
+```
+
+Responds with `"next_step": "collect_fields"` and the list of `missing_fields` until every required field is supplied.
+
+## CLI client
+
+```bash
+cd mcp-client
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+python client.py                                 # interactive
+python client.py --message "I want a refund for autopay" --domain telecom \
+  --fields account_number=ACC123 amount=499 transaction_date=2024-04-01
+```
+
+## Other domains
+
+**Telecom** — `autopay_refund`, `bill_dispute`, `service_outage`, `plan_upgrade`
+**Healthcare** — `book_appointment`, `cancel_appointment`, `prescription_refill`, `lab_report_query`
+**Government** — see `configs/government/intents.json`
+
+Each intent declares its own required fields; the server refuses to execute an action until all of them are present.
+
+## Privacy guardrails
+
+The server refuses to collect or process `otp`, `one_time_password`, `verification_code` or `passcode`. Any request containing these returns a `privacy_violation` response — a support system should never be a channel for capturing them.
+
+## Adding a domain
+
+1. Create `configs/<domain_name>/` with `intents.json`, `actions.json`, `knowledge.json`, `persona.json`
+2. Add the name to `configs/domain_config.json` → `supported_domains`
+3. Restart — configs auto-load on startup
+
+The reversal engine plugs into the banking domain without disturbing the other three.
+
+## Tech stack
+
+FastAPI · Pydantic · Uvicorn · the official `mcp` Python SDK · React (CDN) · pytest · JSON file persistence
+
+## License
+
+MIT.
