@@ -328,6 +328,3 @@ The reversal engine plugs into the banking domain without disturbing the other t
 
 FastAPI · Pydantic · Uvicorn · the official `mcp` Python SDK · React (CDN) · pytest · JSON file persistence
 
-## License
-
-MIT.
