@@ -1,382 +1,180 @@
-# QnA Action MCP Server
+# UPI Autopay Reversal Agent
 
-A local, hackathon-style project that handles structured workflows instead of plain chat replies. It ships two interfaces to the same domain-driven workflow engine:
+**Deciding when a machine may give a customer their money back.**
 
-- **`mcp-server/qna_action_mcp_server.py`** — a plain REST API (FastAPI) used by the CLI client and the browser chat UI. Good for demos, not a real MCP server despite the name.
-- **`mcp-server/mcp_server.py`** — a genuine **Model Context Protocol** server built on the official `mcp` Python SDK, exposing MCP Resources and Tools that a real MCP host (Claude Desktop, Claude Code) can connect to. See [MCP Server](#mcp-server-real-model-context-protocol) below.
+An MCP server that resolves UPI Autopay debit complaints. When the bank's own records prove the debit should never have happened, it reverses the money in seconds. When they don't, it hands a human everything they need — and gets out of the way.
 
-Both share the same business logic in `mcp-server/core.py`, so behavior never drifts between the two.
+| | |
+|---|---|
+| **Domain** | Banking / UPI Autopay |
+| **Interfaces** | Model Context Protocol · REST API · Web UI |
+| **Tests** | 66 passing, 0.03s |
+| **Status** | Working end to end |
 
-When a user sends a message like *"my autopay subscription got auto debited and I want a refund"*, the server:
-
-1. **Detects intent** using keyword/pattern matching
-2. **Identifies the domain** (telecom, healthcare, etc.)
-3. **Validates required fields** before executing any action
-4. **Asks for missing fields** if any are absent
-5. **Executes a structured action** — creates a ticket or notification
-6. **Persists outputs** to local JSON files
-7. **Logs every request** for auditability
+📄 [Full concept note (PDF)](UPI_Autopay_Reversal_Agent_Concept.pdf) · 📘 [Engine documentation](REVERSAL.md)
 
 ---
 
-## Project Structure
+## The problem
 
-```
-qna-action-mcp/
-├── configs/
-│   ├── domain_config.json        # Global domain registry
-│   ├── telecom/
-│   │   ├── intents.json          # Intent definitions + required fields
-│   │   ├── actions.json          # Action metadata
-│   │   ├── knowledge.json        # Policies and notes
-│   │   └── persona.json          # Bot tone and rules
-│   └── healthcare/
-│       ├── intents.json
-│       ├── actions.json
-│       ├── knowledge.json
-│       └── persona.json
-├── data/
-│   ├── tickets.json              # All created tickets
-│   ├── notifications.json        # All created notifications
-│   └── records.json              # Full request/response log
-├── mcp-client/
-│   ├── client.py                 # CLI client (interactive + one-shot)
-│   └── requirements.txt
-├── mcp-server/
-│   ├── core.py                   # Shared business logic (config, intent detection, actions)
-│   ├── qna_action_mcp_server.py  # REST API (FastAPI) — used by CLI client + web UI
-│   ├── mcp_server.py             # Real MCP server (official `mcp` SDK, stdio transport)
-│   ├── test_mcp_client.py        # Scripted client that exercises mcp_server.py end to end
-│   ├── static/index.html         # Browser chat UI, served at /ui
-│   ├── requirements.txt          # REST API deps (Python 3.9+)
-│   ├── requirements-mcp.txt      # MCP server deps (Python 3.10+ required)
-│   └── Dockerfile
-└── README.md
-```
+A UPI Autopay mandate lets a merchant pull money from your account on a schedule without asking again. When it goes wrong, the money is already gone, and getting it back means convincing someone it shouldn't have left.
+
+The naive fix is to have a language model read the complaint and decide. That fails in the direction that costs money: **the model is reading the account of the person asking to be paid.** A confident, well-written complaint is not evidence. Neither is an emotional one.
+
+## The rule the whole design rests on
+
+> Reverse money automatically **only** when the bank can prove the breach from its own records. Everything else goes to a human.
+
+"Genuine" is not a mood read off the complaint text. A complaint is genuine, for the purposes of automatic reversal, when the mandate registry, the debit ledger and the pre-debit notice log — bank-side data the customer cannot influence — contradict the debit that was taken.
 
 ---
 
-## Quickstart
+## Two families of complaint
 
-### 1. Run the Server
+**Verifiable** — the ledger settles it alone. These reverse automatically.
+
+| Reason code | What the check proves |
+|---|---|
+| `MANDATE_REVOKED_BEFORE_DEBIT` | Debit timestamp falls after the recorded revocation |
+| `DEBIT_AFTER_MANDATE_EXPIRY` | Debit falls outside the mandate's validity window |
+| `AMOUNT_EXCEEDS_MANDATE_CAP` | Amount is above the cap agreed at registration |
+| `DUPLICATE_DEBIT` | Same mandate, same amount, inside 24 hours |
+| `MISSING_PRE_DEBIT_NOTIFICATION` | No notice on record, or one sent under the required 24h |
+
+**Contested** — someone outside the bank holds the evidence. These never reverse automatically, however sympathetic the complaint.
+
+| Reason code | Why a person decides |
+|---|---|
+| `UNAUTHORIZED_MANDATE` | Suspected fraud — a false positive funds the fraudster. The mandate is paused in the same second, but an analyst signs off. |
+| `SERVICE_NOT_RENDERED` | Turns on what the merchant did or failed to do |
+| `SUBSCRIPTION_CANCELLED_WITH_MERCHANT` | Cancelled with the merchant, never with the bank |
+| `AMOUNT_DISPUTED_WITH_MERCHANT` | A pricing dispute needing merchant representment |
+
+---
+
+## Guardrails: proof is necessary, not sufficient
+
+A confirmed breach earns a reversal only if nothing else about the case argues for a person.
+
+- **Value ceiling** — above ₹25,000, a person authorises the credit
+- **Claim frequency** — three auto-reversals in ninety days routes the fourth to risk review
+- **Account standing** — frozen accounts and unverified KYC take no automated credits
+- **Dispute window** — debits older than ninety days need supervisory approval
+- **Idempotency** — a debit already reversed is never reversed again. An MCP host can retry a tool call on timeout, and a retry that pays twice is a real loss.
+
+**There is no automatic rejection.** A bank does not close a customer's money complaint without a person signing off. When the ledger flatly contradicts the claim, the case still goes to a human carrying a `LIKELY_INVALID` recommendation. The strongest thing this system does on its own authority is disagree in writing.
+
+---
+
+## Two cases, end to end
+
+### `TXN1001` · Netflix India · ₹649 → **AUTO-REVERSE**
+
+> "I cancelled the Netflix autopay mandate last week from my UPI app but they still took 649 rupees on Monday."
+
+- **Classified** `MANDATE_REVOKED_BEFORE_DEBIT`
+- **Check** — revocation recorded 18 Sep, debit executed 21 Sep. Three days after. Confirmed.
+- **Guardrails** — all clear
+- **Action** — ₹649 credited back with a reversal reference; merchant flagged for follow-up
+
+### `TXN1006` · InsureCo · ₹48,000 → **ESCALATE**
+
+> "My InsureCo policy mandate had expired but they still collected 48,000 rupees."
+
+- **Classified** `DEBIT_AFTER_MANDATE_EXPIRY`
+- **Check** — mandate valid until 03 Sep, debit executed 18 Sep. Confirmed; the customer is almost certainly owed this money.
+- **Guardrails** — ₹48,000 exceeds the ₹25,000 ceiling. Stop.
+- **Action** — routed to `high-value-reversals` with the evidence attached and the reversal amount pre-computed. The advisor approves a finding; they do not repeat the investigation.
+
+Nine scenarios ship with the project, one per branch the engine can take. Four escalate, for four different reasons.
+
+---
+
+## Why a crude classifier is safe here
+
+Mapping free text to a reason code is done with keyword matching. It is safe anyway, and the reason is the argument the whole design rests on:
+
+**Classification never decides that money moves. It decides which verification to run.** Route a complaint to the wrong check and the check fails against the ledger, and the case escalates to a person. The failure mode of a misread complaint is a slower answer — never a wrong payout. A test pins exactly this.
+
+This is also what makes it safe to let a language model participate. A model can propose a reason code and the engine will use it — and will still refuse to reverse if the ledger does not agree.
+
+> **The model gets to be helpful about understanding. It never gets to be authoritative about paying.**
+
+---
+
+## Architecture
+
+```
+mcp-server/
+├── reversal_policy.py    Decision engine. A pure function of the case — no I/O,
+│                         no clock reads, no model calls. 66 tests in 0.03s.
+├── reversal_ledger.py    Mandates, debits, notices, accounts + append-only audit log
+├── reversal.py           Carries a decision out: moves money, stops mandates,
+│                         opens tickets, drafts what the customer is told
+├── mcp_server.py         MCP surface (official Python SDK)
+├── qna_action_mcp_server.py   FastAPI REST API
+└── static/index.html     Decision-trace web UI
+configs/                  Per-domain intents, actions, knowledge, persona
+data/                     JSON stores
+```
+
+The split between the first and third entries is the one that matters. The hard part — deciding — is a pure function you can test exhaustively in milliseconds. The risky part — acting — is a short, boring file. Neither is allowed to become the other.
+
+**Tool tiering is the security model.** A model may call the read tools freely, should call `assess_reversal` before acting, and finds the effecting tools gated. `assess_reversal` runs the full engine and changes nothing, so a model can say what will happen before it happens. `initiate_refund_or_reversal` re-runs the engine internally and refuses if it does not independently reach the same verdict.
+
+---
+
+## Running it
 
 ```bash
 cd mcp-server
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn qna_action_mcp_server:app --reload --port 8000
-```
-
-Server starts at: `http://localhost:8000`
-
----
-
-### 2. Run the Client
-
-In a separate terminal:
-
-```bash
-cd mcp-client
-python -m venv venv
-source venv/bin/activate
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# Interactive mode
-python client.py
-
-# One-shot mode
-python client.py --message "I want a refund for autopay" --domain telecom \
-  --fields account_number=ACC123 amount=499 transaction_date=2024-04-01
+python seed_reversal_ledger.py                          # load the 9 scenarios
+uvicorn qna_action_mcp_server:app --port 8000            # then open http://localhost:8000/ui
 ```
 
----
+Click **TXN1001** or **TXN1006** and the decision trace renders: classified reason code, the ledger check and its evidence, the guardrail outcome, the final action, and what the customer hears.
 
-### 3. Or use the Web UI
-
-With the server running (step 1), just open a browser:
-
-```
-http://localhost:8000
-```
-
-A chat-style interface — pick a domain, click a suggested issue or type your own, and it walks you through context and field collection in the browser. No client install needed.
-
----
-
-## MCP Server (real Model Context Protocol)
-
-`mcp_server.py` is a genuine MCP server built on the official [`mcp` Python SDK](https://pypi.org/project/mcp/), which requires **Python 3.10+**. It runs separately from the REST API above, in its own venv, and exposes the same underlying engine (`core.py`) as real MCP Resources and Tools instead of HTTP endpoints.
-
-### Resources (read-only)
-
-| URI                   | Returns                                              |
-|------------------------|-------------------------------------------------------|
-| `domains://list`       | Domain registry (`domain_config.json`)                |
-| `knowledge://{domain}` | Knowledge base / policy notes / SLAs                   |
-| `intents://{domain}`   | Intent definitions: name, description, required fields, priority |
-| `persona://{domain}`   | Bot tone, behavioral rules, escalation message          |
-
-### Tools (the only way to write data)
-
-| Tool                              | Purpose                                                                 |
-|------------------------------------|--------------------------------------------------------------------------|
-| `search_knowledge`                 | Free-text search over a domain's knowledge base                         |
-| `create_case`                      | Detect intent from a message and open a ticket once fields are complete |
-| `initiate_refund_or_reversal`      | Same, but refuses to run unless the detected intent is refund/reversal/dispute-type |
-| `pause_or_cancel_mandate`          | Same, but refuses to run unless the intent is cancel/pause/mandate-type |
-| `send_notification_or_escalation`  | Raises a notification, or escalates to a human agent if context/reason warrants it |
-
-The two restricted tools are the "controlled interface" from the design doc in practice: an MCP host can't use `initiate_refund_or_reversal` to block a card, or `pause_or_cancel_mandate` to file a refund — each tool checks the detected intent against an allow-list and returns an error instead of acting.
-
-### Setup
-
-```bash
-cd mcp-server
-brew install python@3.12        # or any Python 3.10+
-python3.12 -m venv venv-mcp
-venv-mcp/bin/pip install -r requirements-mcp.txt
-```
-
-### Test it
-
-Scripted, no host required — spawns the server over stdio, lists resources/tools, and calls all 5 tools with sample data:
-
-```bash
-venv-mcp/bin/python test_mcp_client.py
-```
-
-Or interactively, via the official MCP Inspector (browser-based):
-
-```bash
-venv-mcp/bin/mcp dev mcp_server.py
-```
-
-### Connect it to a real MCP host
-
-To let Claude Desktop or Claude Code actually call these tools, add to its MCP config (e.g. `claude_desktop_config.json`):
+**As an MCP server**, add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "qna-action-mcp": {
-      "command": "/absolute/path/to/mcp-server/venv-mcp/bin/python",
-      "args": ["/absolute/path/to/mcp-server/mcp_server.py"]
+      "command": "/abs/path/to/mcp-server/venv-mcp/bin/python",
+      "args": ["/abs/path/to/mcp-server/mcp_server.py"]
     }
   }
 }
 ```
 
-**Scope note:** intent detection here is still keyword matching (same as the REST API) — it does not do LLM-based reasoning or the confidence/risk-based autonomy tiers described in the original design doc. The MCP layer makes the tool/resource boundary real; deeper agentic reasoning would be a separate follow-up.
+Then describe the problem in plain language and let the model work. It reads the complaint, picks the tools, and explains the outcome — while the engine holds the authority.
 
----
-
-## API Endpoints
-
-| Method | Endpoint   | Description                          |
-|--------|------------|--------------------------------------|
-| GET    | `/health`  | Server health and loaded domains     |
-| GET    | `/domains` | Available domains and their intents  |
-| GET    | `/tools`   | Available actions per domain         |
-| POST   | `/run`     | Main workflow endpoint               |
-
-### POST /run — Request Body
-
-```json
-{
-  "message": "my autopay got debited and I want a refund",
-  "domain": "telecom",
-  "fields": {
-    "account_number": "ACC123",
-    "amount": "499",
-    "transaction_date": "2024-04-01"
-  }
-}
-```
-
-### POST /run — Response
-
-```json
-{
-  "ok": true,
-  "domain": "telecom",
-  "detected_intent": "autopay_refund",
-  "next_step": "action_executed",
-  "missing_fields": [],
-  "action_result": {
-    "id": "A1B2C3D4",
-    "timestamp": "2024-04-04T10:30:00+00:00",
-    "domain": "telecom",
-    "intent": "autopay_refund",
-    "action": "create_ticket",
-    "priority": "high",
-    "fields": { "account_number": "ACC123", "amount": "499", "transaction_date": "2024-04-01" },
-    "status": "created",
-    "message": "A support ticket has been created. Our team will contact you within 24-48 hours."
-  },
-  "notes": [
-    "Autopay and auto-debit refunds are processed within 5-7 business days.",
-    "For urgent issues, call 1-800-TELECOM (Mon-Sat, 9AM-6PM)."
-  ]
-}
-```
-
----
-
-## Example Requests
-
-### Telecom — Autopay Refund (full fields)
+**Tests:**
 
 ```bash
-curl -X POST http://localhost:8000/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "my autopay subscription got auto debited and I want a refund",
-    "domain": "telecom",
-    "fields": {
-      "account_number": "ACC-9921",
-      "amount": "799",
-      "transaction_date": "2024-04-01"
-    }
-  }'
-```
-
-### Healthcare — Book Appointment (full fields)
-
-```bash
-curl -X POST http://localhost:8000/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "I need to book an appointment with a cardiologist",
-    "domain": "healthcare",
-    "fields": {
-      "patient_name": "Jane Doe",
-      "doctor_specialization": "Cardiologist",
-      "preferred_date": "2024-04-10"
-    }
-  }'
-```
-
-### Missing Fields (server asks for more info)
-
-```bash
-curl -X POST http://localhost:8000/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "I want a refund for autopay",
-    "domain": "telecom",
-    "fields": {}
-  }'
-```
-Response will have `"next_step": "collect_fields"` and `"missing_fields": ["account_number", "amount", "transaction_date"]`.
-
----
-
-## Example Ticket Output (`data/tickets.json`)
-
-```json
-[
-  {
-    "id": "A1B2C3D4",
-    "timestamp": "2024-04-04T10:30:00+00:00",
-    "domain": "telecom",
-    "intent": "autopay_refund",
-    "action": "create_ticket",
-    "priority": "high",
-    "fields": {
-      "account_number": "ACC-9921",
-      "amount": "799",
-      "transaction_date": "2024-04-01"
-    },
-    "status": "created",
-    "message": "A support ticket has been created. Our team will contact you within 24-48 hours."
-  }
-]
+pytest test_reversal_policy.py -q      # 66 passed
 ```
 
 ---
 
-## Supported Domains
+## What this is honest about
 
-### Telecom
-| Intent          | Required Fields                               | Action              |
-|-----------------|-----------------------------------------------|---------------------|
-| autopay_refund  | account_number, amount, transaction_date      | create_ticket       |
-| bill_dispute    | account_number, bill_month                    | create_ticket       |
-| service_outage  | account_number, location                      | create_ticket       |
-| plan_upgrade    | account_number, desired_plan                  | create_notification |
+The demo is real — no API key, no network, the actual decision path rather than a script. But a demo is not a deployment. The gaps worth naming:
 
-### Healthcare
-| Intent               | Required Fields                                    | Action              |
-|----------------------|----------------------------------------------------|---------------------|
-| book_appointment     | patient_name, doctor_specialization, preferred_date| create_ticket       |
-| cancel_appointment   | patient_name, appointment_id                       | create_notification |
-| prescription_refill  | patient_name, prescription_id, pharmacy_name       | create_ticket       |
-| lab_report_query     | patient_name, test_date                            | create_notification |
+- **Reversals are written to a JSON store.** Real money movement needs a transactional store and an idempotency key supplied by the caller, not just the transaction id.
+- **The ninety-day counter increments but never ages back down.** A real implementation counts reversal rows inside a rolling window.
+- **The notice check treats a missing row as proof no notice was sent.** If the notification service can silently drop rows, that assumption pays out money it should not. This is the single most dangerous assumption in the system, and it is a data-integrity problem, not a logic one.
+- **Reason codes cover the common breaches, not every one.** An unmapped complaint escalates, which is the correct failure — but it is still an unmapped complaint.
 
 ---
 
-## Privacy Guardrails
+## The one-line version
 
-The server **refuses** to collect or process:
-- `otp` / `one_time_password`
-- `verification_code`
-- `passcode`
-
-Any request containing these fields receives a `privacy_violation` response.
+Most of the value here is not automation. It is drawing a defensible line between the complaints a machine can settle and the ones it must not — and then making the machine unable to cross it, even when a persuasive customer or a confident model would like it to.
 
 ---
 
-## Adding a New Domain
-
-1. Create a folder under `configs/<domain_name>/`
-2. Add `intents.json`, `actions.json`, `knowledge.json`, `persona.json`
-3. Add the domain name to `configs/domain_config.json` → `supported_domains`
-4. Restart the server — it auto-loads all configs on startup
-
----
-
-## 1-Minute Demo Script
-
-```
-1. Start server:    cd mcp-server && uvicorn qna_action_mcp_server:app --port 8000
-2. Open browser:    http://localhost:8000/docs  (Swagger UI auto-generated)
-3. Run demo curl:   (autopay refund with missing fields → server asks for them)
-4. Run curl again:  (with all fields → ticket created)
-5. Show file:       cat data/tickets.json
-6. Show log:        cat data/records.json
-```
-
----
-
-## Tech Stack
-
-- **FastAPI** — web framework + auto Swagger docs
-- **Pydantic** — request/response validation
-- **Uvicorn** — ASGI server
-- **requests** — client HTTP calls
-- **JSON files** — zero-dependency persistence
-
----
-
-## License
-
-MIT — built for hackathon demos. Fork it, break it, ship it.
-
----
-
-## Autopay reversal decision layer
-
-`initiate_refund_or_reversal` now reverses money when the bank's own records
-confirm the breach, and escalates to a human when they don't. The rule, the
-reason codes, the guardrails and the nine demo scenarios are documented in
-[REVERSAL.md](REVERSAL.md).
-
-Quick start:
-
-```bash
-cd mcp-server
-python seed_reversal_ledger.py
-python demo_reversal.py
-python -m pytest test_reversal_policy.py -q
-```
+Built for the Neutrinos Venture Studio Hackathon by [Shiv Arora](https://github.com/shivabtech23).
